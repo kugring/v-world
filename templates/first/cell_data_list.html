@@ -1,0 +1,54 @@
+<!-- cell_data_list.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cell Data List</title>
+</head>
+<body>
+    <h1>Cell Data List</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Cell ID</th>
+                <th>Company</th>
+                <th>Date</th>
+                <th>Band</th>
+                <th>Bandwidth</th>
+                <th>Address</th>
+                <th>District</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Voice Connection</th>
+                <th>Voice Traffic</th>
+                <th>Data Connection</th>
+                <th>Data Traffic</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data in cell_data %}
+                <tr>
+                    <td>{{ data.cellId }}</td>
+                    <td>{{ data.company }}</td>
+                    <td>{{ data.date }}</td>
+                    <td>{{ data.band }}</td>
+                    <td>{{ data.bandwidth }}</td>
+                    <td>{{ data.address }}</td>
+                    <td>{{ data.district }}</td>
+                    <td>{{ data.latitude }}</td>
+                    <td>{{ data.longitude }}</td>
+                    <td>{{ data.voice_connection }}</td>
+                    <td>{{ data.voice_traffic }}</td>
+                    <td>{{ data.data_connection }}</td>
+                    <td>{{ data.data_traffic }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="13">No data available.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

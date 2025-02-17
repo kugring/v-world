@@ -1,0 +1,61 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>브이월드 지도</title>
+
+    <!-- ✅ jQuery 추가 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- ✅ VWorld API 추가 -->
+    <script type="text/javascript" src="https://map.vworld.kr/js/map/OpenLayers-2.13/OpenLayers.js"></script>
+    <script type="text/javascript" src="https://map.vworld.kr/js/apis.do?type=Base&apiKey=D5914E9D-71E7-3FC4-AA3B-069A239E8B7D&domain=localhost"></script>
+
+    <!-- ✅ Django 정적 파일 -->
+    <link rel="stylesheet" href="{% static 'first/css/vworldMap.css' %}" />
+    <link rel="stylesheet" href="{% static 'first/css/mapFilter.css' %}" />
+  </head>
+  <body>
+    <h2>브이월드 지도 - 데이터 필터링</h2>
+
+    <div id="map-container">
+      <div id="map">
+        <div id="loading-spinner"><p>📡 데이터 불러오는 중...</p></div>
+        <div id="message-box" class="message-box"></div>
+        <!-- 지도 타입 변경 UI -->
+        <div class="map-controls">
+          <label for="mapType">지도 타입 선택</label>
+          <select id="mapType" onchange="changeMapLayer()">
+            <option value="Base">일반 지도</option>
+            <option value="Satellite">위성 지도</option>
+            <option value="White">백지도</option>
+            <option value="Midnight">야간 지도</option>
+          </select>
+        </div>
+        <div class="slider-container">
+          {% for filter in filters %}
+          <div class="filter-item">
+            <div class="filter-title">
+              <input type="checkbox" class="filter-check" id="use_{{ filter.id }}" {% if filter.checked %}checked{% endif %} />
+              <label>{{ filter.label }}: <span id="{{ filter.id }}_val">20</span>%</label>
+            </div>
+            <input type="range" id="{{ filter.id }}" class="filter-range" min="0" max="100" value="20" />
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <button id="bounding-box-btn">영역 선택</button>
+    <button onclick="resetMap()">초기화</button>
+
+    <!-- ✅ 정적 JavaScript 파일 -->
+    <script src="{% static 'first/js/initMap.js' %}"></script>
+    <script src="{% static 'first/js/mapFilter.js' %}"></script>
+    <script src="{% static 'first/js/boundingBox.js' %}"></script>
+    <script src="{% static 'first/js/updateMarkers.js' %}"></script>
+    <script src="{% static 'first/js/updateMap.js' %}"></script>
+  </body>
+</html>

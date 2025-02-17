@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Display Data</title>
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid black;
+        padding: 8px;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Data Table</h1>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Cell ID</th>
+          <th>Company</th>
+          <th>Date</th>
+          <th>Band</th>
+          <th>Bandwidth</th>
+          <th>Address</th>
+          <th>District</th>
+          <th>Latitude</th>
+          <th>Longitude</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data_list %}
+        <tr>
+          <td>{{ row.cellId }}</td>
+          <td>{{ row.company }}</td>
+          <td>{{ row.date }}</td>
+          <td>{{ row.band }}</td>
+          <td>{{ row.bandwidth }}</td>
+          <td>{{ row.address }}</td>
+          <td>{{ row.district }}</td>
+          <td>{{ row.latitude }}</td>
+          <td>{{ row.longitude }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9">No data available</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
