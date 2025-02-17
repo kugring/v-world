@@ -32,6 +32,7 @@ function initMap() {
     12 // 줌 레벨 (값 조절 가능)
   )
   updateMap()
+  enableCircleSelection()
 }
 
 function changeMapLayer() {

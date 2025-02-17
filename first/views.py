@@ -8,6 +8,7 @@ from django.db import connection, DatabaseError
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
 
 # fmt: off
 # VWORLD API 키
@@ -15,10 +16,6 @@ VWORLD_API_KEY = "D5914E9D-71E7-3FC4-AA3B-069A239E8B7D"
 
 @require_GET
 def home(request):
-    """홈 화면 - 기본 지도 및 데이터 로드"""
-    cell_data = CellData.objects.all()
-    cell_data_json = json.dumps(list(cell_data.values()))
-
     filters = [
         {"id": "voice_connection", "label": "음성 연결", "checked": True},
         {"id": "voice_traffic", "label": "음성 트래픽", "checked": False},
@@ -26,101 +23,112 @@ def home(request):
         {"id": "data_traffic", "label": "데이터 트래픽", "checked": False},
     ]
     return render(
-        request, "first/home.html", {"cell_data": cell_data_json, "filters": filters}
+        request, "first/home.html", {"filters": filters}
     )
 
 
-@require_GET
-def cell_data_list(request):
-    """데이터베이스에서 데이터 리스트 가져오기"""
-    cell_data = CellData.objects.all()
-    return render(request, "first/cell_data_list.html", {"cell_data": cell_data})
 
 
 
-@require_GET
-def filter_data_by_bounds(request):
-    """사용자가 드래그한 사각형 영역 내 데이터를 필터링"""
-    try:
-        left = float(request.GET.get("left"))
-        right = float(request.GET.get("right"))
-        top = float(request.GET.get("top"))
-        bottom = float(request.GET.get("bottom"))
+@csrf_exempt
+def filter_data(request):
+    """AJAX 요청을 받아 동적으로 필터링된 데이터를 반환 (사각형 + 원형)"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            providers = data.get('providers', [])
+            tech_types = data.get('tech_types', [])
+            start_date = data.get('start_date', '')
+            end_date = data.get('end_date', '')
+            bounds = data.get('bounds', None)  # 사각형 영역 {left, right, top, bottom}
+            center = data.get('center', None)  # 원형 필터링 {lon, lat, radius}
 
-        filtered_cells = CellData.objects.filter(
-            longitude__gte=left,
-            longitude__lte=right,
-            latitude__gte=bottom,
-            latitude__lte=top,
-        )
-        print(filtered_cells)
+            if not providers or not tech_types:
+                return JsonResponse({'error': '통신사 및 네트워크 종류를 선택하세요.'}, status=400)
 
-        return JsonResponse({"cell_data": json.dumps(list(filtered_cells.values()))})
+            # 날짜 변환 (YYYY-MM-DD)
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m-%d")
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").strftime("%Y-%m-%d")
+            table_date = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y%m")
 
-    except (TypeError, ValueError) as e:
-        return JsonResponse({"error": str(e)}, status=400)
+            all_results = []
 
+            for provider in providers:
+                for tech in tech_types:
+                    table_name = f"mtisapp_{provider}_{tech}_{table_date}"
+                    
+                    # ✅ 존재하는 테이블인지 확인
+                    with connection.cursor() as cursor:
+                        cursor.execute("SHOW TABLES LIKE %s", [table_name])
+                        table_exists = cursor.fetchone()
+                    
+                    if not table_exists:
+                        print(f"❌ Table {table_name} does not exist, skipping...")
+                        continue  # 테이블이 없으면 건너뛰기
 
-@require_GET
-def filter_data_by_radius(request):
-    """사용자가 클릭한 지점에서 반경 내 데이터를 필터링"""
-    try:
-        lon = float(request.GET.get("lon"))
-        lat = float(request.GET.get("lat"))
-        radius = float(request.GET.get("radius"))
+                    # ✅ 동적 모델 생성
+                    model_class = create_dynamic_model(provider, tech, table_date[:6])
 
-        def haversine(lat1, lon1, lat2, lon2):
-            """Haversine 공식으로 두 좌표 사이 거리 계산 (미터 단위)"""
-            R = 6371000  # 지구 반지름 (m)
-            phi1, phi2 = math.radians(lat1), math.radians(lat2)
-            delta_phi = math.radians(lat2 - lat1)
-            delta_lambda = math.radians(lon2 - lon1)
+                    # ✅ 기본 날짜 필터링
+                    query = model_class.objects.filter(date__gte=start_date, date__lte=end_date)
 
-            a = (
-                math.sin(delta_phi / 2.0) ** 2
-                + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
-            )
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-            return R * c
+                    # ✅ 사각형 필터링 (bounds가 존재할 경우)
+                    if bounds:
+                        query = query.filter(
+                            longitude__gte=bounds["left"],
+                            longitude__lte=bounds["right"],
+                            latitude__gte=bounds["bottom"],
+                            latitude__lte=bounds["top"]
+                        )
 
-        filtered_cells = [
-            cell
-            for cell in CellData.objects.all()
-            if haversine(lat, lon, cell.latitude, cell.longitude) <= radius
-        ]
+                    # ✅ 원형 반경 필터링 (center가 존재할 경우)
+                    if center:
+                        lon = float(center["lon"])
+                        lat = float(center["lat"])
+                        radius = float(center["radius"])
 
-        return JsonResponse(
-            {"cell_data": json.dumps([cell.__dict__ for cell in filtered_cells])}
-        )
+                        def haversine(lat1, lon1, lat2, lon2):
+                            """Haversine 공식으로 두 좌표 사이 거리 계산 (미터 단위)"""
+                            R = 6371000  # 지구 반지름 (m)
+                            phi1, phi2 = math.radians(lat1), math.radians(lat2)
+                            delta_phi = math.radians(lat2 - lat1)
+                            delta_lambda = math.radians(lon2 - lon1)
 
-    except (TypeError, ValueError) as e:
-        return JsonResponse({"error": str(e)}, status=400)
+                            a = (
+                                math.sin(delta_phi / 2.0) ** 2
+                                + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+                            )
+                            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                            return R * c
 
+                        # ✅ 원형 범위 내 데이터 필터링 (먼저 대략적인 BBOX 적용 후 거리 계산)
+                        rough_query = query.filter(
+                            longitude__gte=lon - 0.03,
+                            longitude__lte=lon + 0.03,
+                            latitude__gte=lat - 0.03,
+                            latitude__lte=lat + 0.03,
+                        )
 
+                        results = [entry for entry in rough_query if haversine(lat, lon, entry.latitude, entry.longitude) <= radius]
+                    else:
+                        results = query
 
+                    for entry in results:
+                        all_results.append({
+                            'cellId': entry.cellId,
+                            'company': entry.company,
+                            'date': entry.date,
+                            'band': entry.band,
+                            'bandwidth': entry.bandwidth,
+                            'latitude': entry.latitude,
+                            'longitude': entry.longitude,
+                            'address': entry.address,
+                            'district': entry.district
+                        })
 
+            return JsonResponse({'data': all_results})
 
+        except json.JSONDecodeError:
+            return JsonResponse({'error': '잘못된 JSON 데이터입니다.'}, status=400)
 
-
-
-def get_filtered_data(provider, tech, start_date, end_date):
-    """동적으로 생성된 모델을 사용하여 필터링된 데이터를 가져오기"""
-    model_class = create_dynamic_model(provider, tech, start_date)  # 동적 모델 생성
-
-    # 날짜 형식 변환 (YYYYMM → YYYY-MM-DD)
-    start_date = datetime.strptime(start_date, "%Y%m").strftime("%Y-%m-%d")
-    end_date = datetime.strptime(end_date, "%Y%m").strftime("%Y-%m-%d")
-
-    # ORM을 사용하여 데이터 필터링
-    data = model_class.objects.filter(date__gte=start_date, date__lte=end_date)
-
-
-    return data
-
-
-def display_data(request, provider, tech, start_date, end_date):
-    """Django 템플릿을 사용하여 데이터를 렌더링"""
-    data_list = get_filtered_data(provider, tech, start_date, end_date)
-    print(data_list)
-
-    return render(request, 'first/display_data.html', {'data_list': data_list})
+    return JsonResponse({'error': 'POST 요청만 허용됩니다.'}, status=400)

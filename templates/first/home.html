@@ -7,8 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>브이월드 지도</title>
 
-    <!-- ✅ jQuery 추가 -->
+    <!-- ✅ jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- ✅ jQuery UI CSS -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+
+    <!-- ✅ jQuery UI JS -->
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 
     <!-- ✅ VWorld API 추가 -->
     <script type="text/javascript" src="https://map.vworld.kr/js/map/OpenLayers-2.13/OpenLayers.js"></script>
@@ -35,26 +41,43 @@
             <option value="Midnight">야간 지도</option>
           </select>
         </div>
-        <div class="slider-container">
-          {% for filter in filters %}
-          <div class="filter-item">
-            <div class="filter-title">
-              <input type="checkbox" class="filter-check" id="use_{{ filter.id }}" {% if filter.checked %}checked{% endif %} />
-              <label>{{ filter.label }}: <span id="{{ filter.id }}_val">20</span>%</label>
-            </div>
-            <input type="range" id="{{ filter.id }}" class="filter-range" min="0" max="100" value="20" />
-          </div>
-          {% endfor %}
-        </div>
       </div>
     </div>
     <button id="bounding-box-btn">영역 선택</button>
     <button onclick="resetMap()">초기화</button>
 
-    <!-- ✅ 정적 JavaScript 파일 -->
+    <!-- ######################################################################################################### -->
+
+    <h1>데이터 필터링</h1>
+
+    <div class="filter-container">
+      <label>네트워크 종류:</label>
+      <input type="checkbox" name="tech" value="3g" /> 3G 
+      <input type="checkbox" name="tech" value="4g" /> 4G 
+      <input type="checkbox" name="tech" value="5g" checked /> 5G
+      <br /><br />
+
+      <label>통신사:</label>
+      <input type="checkbox" name="provider" value="kt" checked /> KT 
+      <input type="checkbox" name="provider" value="lgu" checked /> LGU+
+      <input type="checkbox" name="provider" value="skt" checked /> SKT
+
+      <br /><br />
+
+      <label>기간 선택:</label>
+      <input type="text" id="start_date" placeholder="시작 날짜" value="" />
+      <input type="text" id="end_date" placeholder="종료 날짜" value="" />
+
+      <br /><br />
+      <button id="fetchData">데이터 가져오기</button>
+    </div>
+
+
+    <!-- ✅ ES6 Module 사용 -->
     <script src="{% static 'first/js/initMap.js' %}"></script>
     <script src="{% static 'first/js/mapFilter.js' %}"></script>
     <script src="{% static 'first/js/boundingBox.js' %}"></script>
+    <script src="{% static 'first/js/radiusSelection.js' %}"></script>
     <script src="{% static 'first/js/updateMarkers.js' %}"></script>
     <script src="{% static 'first/js/updateMap.js' %}"></script>
   </body>
